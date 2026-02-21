@@ -1,6 +1,6 @@
 # MCP Servers
 
-This repository contains Model Context Protocol (MCP) servers. At the moment it includes a Confluence MCP server under `confluence_mcp/`.
+This repository contains Model Context Protocol (MCP) servers: a **Confluence** MCP server and a **GitHub** MCP server.
 
 ## Project structure
 
@@ -8,7 +8,14 @@ This repository contains Model Context Protocol (MCP) servers. At the moment it 
   - `package.json` – Node package definition for the Confluence MCP server
   - `package-lock.json` – Locked dependency tree for reproducible installs
   - `index.js` – MCP server implementation that exposes Confluence search capabilities
+- `github_mcp/`
+  - `package.json` – Node package definition for the GitHub MCP server
+  - `package-lock.json` – Locked dependency tree for reproducible installs
+  - `index.js` – MCP server implementation that exposes GitHub API operations (repos, files, branches, PRs)
+- `README.md` – This file
 - `.gitignore` – Standard Git ignore rules
+
+---
 
 ## Confluence MCP server
 
@@ -28,67 +35,84 @@ The Confluence MCP server exposes a single tool, `search_confluence`, which lets
 - **Configuration**: `dotenv`
 - **Validation**: `zod`
 
-## Getting started
-
-### Prerequisites
-
-- Node.js (recommended: LTS version)
-- Access to an Atlassian Confluence instance
-- A Confluence API token
-
-### Installation
-
-From the repository root:
+### Installation & configuration
 
 ```bash
 cd confluence_mcp
 npm install
 ```
 
-### Configuration
+Set these environment variables (e.g. in a `.env` file):
 
-The server reads configuration from environment variables (typically via a `.env` file in `confluence_mcp/`). The following variables are expected:
+- `CONFLUENCE_BASE_URL` – Base URL of your Confluence site (e.g. `https://your-domain.atlassian.net`)
+- `CONFLUENCE_EMAIL` – Email for your Atlassian account
+- `CONFLUENCE_API_TOKEN` – Atlassian API token
 
-- `CONFLUENCE_BASE_URL` – Base URL of your Confluence site, e.g. `https://your-domain.atlassian.net`
-- `CONFLUENCE_EMAIL` – Email address associated with your Atlassian account
-- `CONFLUENCE_API_TOKEN` – API token generated for your Atlassian account
+### Tool: `search_confluence`
 
-Example `.env` file:
+- **Inputs**: `pageId` (optional), `query` (optional), `limit` (optional, default 10). Provide either `pageId` or `query`.
+- **Behavior**: Fetches a page by ID or searches by keywords and returns content or result list (id, title, url, excerpt).
 
-```env
-CONFLUENCE_BASE_URL=https://your-domain.atlassian.net
-CONFLUENCE_EMAIL=you@example.com
-CONFLUENCE_API_TOKEN=your-api-token
-```
+---
 
-### Running the server
+## GitHub MCP server
 
-The server is implemented in `confluence_mcp/index.js` and uses `StdioServerTransport` from the MCP SDK, so it is typically run by an MCP-compatible host (such as an IDE or AI assistant) rather than directly.
+The GitHub MCP server exposes tools to list repos, browse repo trees, read and write files, create branches, and open pull requests using the GitHub API.
 
-A minimal direct run (for testing) could look like:
+### Features
+
+- List repositories for the authenticated user or an organization
+- Get file/folder structure of a repository
+- Get file content from a repo
+- Create or update a file on a branch
+- Create a new branch from an existing one
+- Create a pull request
+
+### Technology stack
+
+- **Runtime**: Node.js (ES modules)
+- **MCP SDK**: `@modelcontextprotocol/sdk`
+- **HTTP client**: `axios`
+- **Configuration**: `dotenv`
+- **Validation**: `zod`
+
+### Installation & configuration
 
 ```bash
-cd confluence_mcp
-node index.js
+cd github_mcp
+npm install
 ```
 
-Refer to your MCP host’s documentation for how to register this server.
+Set this environment variable (e.g. in a `.env` file):
 
-## `search_confluence` tool
+- `GITHUB_TOKEN` – GitHub personal access token with appropriate repo permissions (read for list/tree/file; write for create/update file, create branch, create PR)
 
-The `search_confluence` tool is registered on the MCP server with the following behavior:
+### Tools
 
-- **Inputs**:
-  - `pageId` (string, optional) – ID of a Confluence page to fetch
-  - `query` (string, optional) – Search keywords for Confluence
-  - `limit` (number, optional) – Maximum number of search results (default: 10)
-- **Constraints**:
-  - You must provide **either** `pageId` **or** `query` (if neither is provided, the server throws an error).
+| Tool | Description |
+|------|-------------|
+| `list_repos` | Lists repos for the authenticated user or an org. Inputs: `org` (optional), `limit` (optional, default 30). |
+| `get_repo_tree` | Gets the file/folder structure of a repository. Inputs: `owner`, `repo`, `branch` (optional, default main). |
+| `get_file` | Gets the content of a file in a repo. Inputs: `owner`, `repo`, `path`, `branch` (optional). |
+| `create_or_update_file` | Creates or updates a file on a branch. Inputs: `owner`, `repo`, `path`, `content`, `message`, `branch`. |
+| `create_branch` | Creates a new branch from a base branch. Inputs: `owner`, `repo`, `branch`, `from_branch` (optional). |
+| `create_pull_request` | Opens a PR from a branch into a base branch. Inputs: `owner`, `repo`, `title`, `body`, `head`, `base` (optional). |
 
-When called:
+---
 
-- If `pageId` is provided, the server fetches that specific page’s content from Confluence and returns it via the MCP protocol.
-- If `query` is provided, the server performs a search against Confluence, builds a list of result objects (including `id`, `title`, `url`, and an excerpt), and returns them as JSON text.
+## Running the servers
+
+Each server uses `StdioServerTransport` and is typically run by an MCP-compatible host (e.g. IDE or AI assistant). For a minimal direct run:
+
+```bash
+# Confluence
+cd confluence_mcp && node index.js
+
+# GitHub
+cd github_mcp && node index.js
+```
+
+Refer to your MCP host’s documentation for how to register and run these servers.
 
 ## Contributing
 
@@ -99,4 +123,4 @@ When called:
 
 ## License
 
-This project is licensed under the ISC license (see `confluence_mcp/package.json` for details).
+This project is licensed under the ISC license (see each server’s `package.json` for details).
