@@ -11,6 +11,79 @@ const server = new McpServer({   // ← no second argument needed
 });
 
 server.registerTool(
+  "create_confluence_page",
+  {
+    title: "Create Confluence Page",
+    description: "Creates a new page in a Confluence space",
+    inputSchema: {
+      spaceKey: z.string().describe("The space key to create the page in"),
+      title: z.string().describe("The title of the new page"),
+      content: z.string().describe("The storage format content (HTML) of the page"),
+      parentId: z.string().optional().describe("The ID of the parent page")
+    }
+  },
+  async ({ spaceKey, title, content, parentId }) => {
+    const body = {
+      type: "page",
+      title,
+      space: { key: spaceKey },
+      body: {
+        storage: {
+          value: content,
+          representation: "storage"
+        }
+      }
+    };
+
+    if (parentId) {
+      body.ancestors = [{ id: parentId }];
+    }
+
+    const response = await axios.post(
+      `${process.env.CONFLUENCE_BASE_URL}/wiki/rest/api/content`,
+      body,
+      {
+        auth: {
+          username: process.env.CONFLUENCE_EMAIL,
+          password: process.env.CONFLUENCE_API_TOKEN
+        }
+      }
+    );
+
+    return {
+      content: [{ type: "text", text: JSON.stringify(response.data, null, 2) }]
+    };
+  }
+);
+
+server.registerTool(
+  "list_confluence_spaces",
+  {
+    title: "List Confluence Spaces",
+    description: "Lists all spaces in Confluence",
+    inputSchema: {
+      limit: z.number().optional().describe("Max results to return (default 25)")
+    }
+  },
+  async ({ limit = 25 }) => {
+    const response = await axios.get(
+      `${process.env.CONFLUENCE_BASE_URL}/wiki/rest/api/space`,
+      {
+        params: { limit },
+        auth: {
+          username: process.env.CONFLUENCE_EMAIL,
+          password: process.env.CONFLUENCE_API_TOKEN
+        }
+      }
+    );
+
+    return {
+      content: [{ type: "text", text: JSON.stringify(response.data.results, null, 2) }]
+    };
+  }
+);
+
+server.registerTool(
   "search_confluence",
   {
     title: "Search Confluence",
